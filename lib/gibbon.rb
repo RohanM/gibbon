@@ -16,12 +16,12 @@ class Gibbon
     @api_endpoint = default_parameters.delete(:api_endpoint)
     @timeout = default_parameters.delete(:timeout)
     @throws_exceptions = default_parameters.delete(:throws_exceptions)
-  
+
     @default_params = {apikey: @api_key}.merge(default_parameters)
-    
+
     set_instance_defaults
   end
-  
+
   def api_key=(value)
     @api_key = value.strip if value
     @default_params = @default_params.merge({apikey: @api_key})
@@ -34,12 +34,12 @@ class Gibbon
   protected
 
   def call(method, params = {})
-    api_url = base_api_url + method
     params = @default_params.merge(params)
+    api_url = base_api_url + method + "&" + params.to_query
     response = self.class.post(api_url, body: CGI::escape(MultiJson.dump(params)), timeout: @timeout)
 
     # MailChimp API sometimes returns JSON fragments (e.g. true from listSubscribe)
-    # so we parse after adding brackets to create a JSON array so 
+    # so we parse after adding brackets to create a JSON array so
     # parsing succeeds. This also handles the case of an empty response
     parsed_response = MultiJson.load("[#{response.body}]").first
 
@@ -51,7 +51,7 @@ class Gibbon
 
     parsed_response
   end
-  
+
   def method_missing(method, *args)
     # To support underscores, we camelize the method name
 
@@ -65,7 +65,7 @@ class Gibbon
 
     call(method, *args)
   end
-  
+
   def set_instance_defaults
     @timeout = (self.class.timeout || 30) if @timeout.nil?
     @api_endpoint = self.class.api_endpoint if @api_endpoint.nil?
@@ -105,12 +105,12 @@ class Gibbon
 
     data_center
   end
-  
+
   class MailChimpError < StandardError
     attr_accessor :code
   end
 end
-  
+
 class GibbonExport < Gibbon
   def initialize(api_key = nil, default_parameters = {})
     super(api_key, default_parameters)
@@ -130,7 +130,7 @@ class GibbonExport < Gibbon
     lines = response.body.lines
     if @throws_exceptions
       first_line = MultiJson.load(lines.first) if lines.first
-      
+
       if should_raise_for_response?(first_line)
         error = MailChimpError.new("MailChimp Export API Error: #{first_line["error"]} (code #{first_line["code"]})")
         error.code = first_line["code"]
